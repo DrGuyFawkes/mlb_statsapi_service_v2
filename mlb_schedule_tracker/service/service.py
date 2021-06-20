@@ -25,7 +25,6 @@ def main(event, environment):
         'metadata': {}
     }
 
-
     try:
         start_date_utc = datetime.datetime.utcnow() - datetime.timedelta(days = 5)
         end_date_utc = datetime.datetime.utcnow() + datetime.timedelta(days = 5)

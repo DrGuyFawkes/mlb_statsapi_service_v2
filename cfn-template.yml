@@ -59,7 +59,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: 
           Fn::GetAtt: MLBPlayByPlayDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 1
   MLBPlayByPlayDeadLetterQueue: 
     Type: AWS::SQS::Queue
     Properties:
@@ -73,7 +73,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: 
           Fn::GetAtt: MLBTeamsDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 1
   MLBTeamsDeadLetterQueue: 
     Type: AWS::SQS::Queue
     Properties:
@@ -87,7 +87,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: 
           Fn::GetAtt: MLBVenueDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 1
   MLBVenueDeadLetterQueue: 
     Type: AWS::SQS::Queue
     Properties:
@@ -101,7 +101,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: 
           Fn::GetAtt: MLBLivefeedDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 1
   MLBLivefeedDeadLetterQueue: 
     Type: AWS::SQS::Queue
     Properties:
@@ -115,7 +115,7 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: 
           Fn::GetAtt: MLBPlayersDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 1
   MLBPlayersDeadLetterQueue: 
     Type: AWS::SQS::Queue
     Properties:

@@ -19,15 +19,15 @@ def get_schedule_statsapi(date_str):
     levels = ['1']
 
     for level in levels:
-        schedule_api = "https://statsapi.mlb.com/api/v1/schedule/?sportId=" + level + "&date=" + date_str
-        statapi = requests.get(schedule_api)
+        schedule_endpoint = "https://statsapi.mlb.com/api/v1/schedule/?sportId=" + level + "&date=" + date_str
+        statapi = requests.get(schedule_endpoint)
         schedule = json.loads(statapi.text)
 
         games = []
         for date_games in schedule['dates']:
             if 'games' in date_games.keys():
                 for game in date_games['games']:
-                    game['gameLevel'] = level_name(level)
+                    game['gameLevel'] = sports_abbreviation(level)
                     game_status = game['status']
                     game['gameStatus'] = game['status']['abstractGameState']
 
@@ -38,24 +38,11 @@ def get_schedule_statsapi(date_str):
     
     return games
 
+def sports_abbreviation(level_code):
+    sportid_endpoint = "https://statsapi.mlb.com/api/v1/sports/" + level_code
+    statapi = requests.get(sportid_endpoint)
+    sportid = json.loads(statapi.text)
+    
+    abbreviation = sportid['sports'][0]['abbreviation']
 
-def level_name(level_code):
-    if level_code == '1':
-        level_name = "MLB"
-    elif level_code == '11':
-        level_name = "AAA"
-    elif level_code == '12':
-        level_name = "AA"
-    elif level_code == '13':
-        level_name = "High A"
-    elif level_code == '14':
-        level_name = "Low A"
-    elif level_code == '15':
-        level_name = "ShortSeason A"
-    elif level_code == '5442':
-        level_name = "Rookie Advanced"
-    elif level_code == '16':
-        level_name = "Rookie"
-    else:
-        level_name = "unknown"
-    return level_name
+    return abbreviation

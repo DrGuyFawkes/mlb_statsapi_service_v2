@@ -3,7 +3,7 @@ import pandas as pd
 from dataclasses import asdict
 import psycopg2
 
-def create_stage_table(redshift_credentials, stage_name, df_csv):
+def insert_csv_into_stage(redshift_credentials, stage_name, df_csv):
   
     username = redshift_credentials['username']
     password = redshift_credentials['password']
@@ -13,7 +13,7 @@ def create_stage_table(redshift_credentials, stage_name, df_csv):
 
     conn = create_engine(f'postgresql://{username}:{password}@{db_host}:{db_port}/{db_name}')
 
-    return df_csv.to_sql(stage_name, conn, index=False, if_exists='replace',chunksize=1000, method='multi')
+    return df_csv.to_sql(stage_name, conn, index=False, if_exists='append',chunksize=1000, method='multi')
 
 
 def upsert_data(redshift_credentials, target_table, stage_table, columns):
@@ -36,7 +36,7 @@ def upsert_data(redshift_credentials, target_table, stage_table, columns):
 
     cur = con.cursor()
     cur.execute(sql_statement)
-    result = cur.fetchall()
+    con.commit()
 
     cur.close() 
     con.close()
@@ -73,7 +73,7 @@ def get_column_name(redshift_credentials, object_key):
 
 def drop_table(redshift_credentials, stage_table):
     sql_statement = f"""
-                    DROP TABLE IF EXISTS DROP TABLE {stage_table}
+                    DROP TABLE IF EXISTS {stage_table}
                     """
     con=connect_redshift(redshift_credentials)
 

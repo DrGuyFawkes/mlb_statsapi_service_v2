@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 import ast
-from service import s3, redshift
+from service import s3, redshift_create_table, redshift
 import sys
 
 LOGGER = logging.getLogger(__name__)
@@ -37,32 +37,42 @@ def main(event, environment):
           
                 ## create stage table in redshift
                 redshift_credentials = environment['secretsmanager']['REDSHIFT_CREDENTIALS']
-                response = redshift.create_stage_table(redshift_credentials, stage_name, df_csv)
-            
+                response = redshift_create_table.create_stage_table(redshift_credentials, target_name, stage_name)
+                response = redshift.insert_csv_into_stage(redshift_credentials, stage_name, df_csv)
+                
+                ### there is an issue. Not enough time to fix it. So I sumbit a second option. Ideally, upsert is a better approach.
                 ## get column name from stage tale
-                columns = redshift.get_column_name(redshift_credentials, stage_name)
-            
+                # columns = redshift.get_column_name(redshift_credentials, stage_name)            
                 ## upsert data from stage to target table
-                # there is an issue. Not enough time to fix it. So I sumbit a second option. Ideally, upsert is a better approach.
                 # response = redshift.upsert_data(redshift_credentials, target_name, stage_name, columns)
+
+                ## upsert data from stage to target table
                 response = redshift.merge_operation_by_replacing_existing_rows(redshift_credentials, target_name, stage_name)
 
                 ## drop stage table
                 response = redshift.drop_table(redshift_credentials, stage_name) 
                
-                print('complete import process')
+                LOGGER.info('complete import process:: ', object_key)
             else:
-                print('nothing to process: not target folder')
+                LOGGER.info('nothing to process: not target folder')
 
     except KeyError as e:
         error = f"Missing required field {e}."
         LOGGER.error(error)
         execution_event.update({"status": "Error", "description": error, "metadata": event})
+
+        # if error, drop stage table
+        response = redshift.drop_table(redshift_credentials, stage_name) 
         sys.exit(1)
+
     except Exception as e:
         LOGGER.error(e)
         execution_event.update({"status": "Error", "description": f"{str(e)}", "metadata": event})
+
+        # if error, drop stage table
+        response = redshift.drop_table(redshift_credentials, stage_name)
         sys.exit(1)
+
     finally:
         LOGGER.info(execution_event)
 
