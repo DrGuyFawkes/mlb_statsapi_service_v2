@@ -1,1 +1,2 @@
-# mlb_statsapi_service_v2
+## MLB-StatsAPI-architecture
+![Alt text](/../main/cubs_diagram.png?raw=true)

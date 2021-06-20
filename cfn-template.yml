@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:  #   Type: String
+  Environment:
+    Type: String
+Resources:
+  # =========================================================================================
+  # IAM ROLES, POLICIES, PERMISSIONS
+  # =========================================================================================
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+            - sagemaker.amazonaws.com
+            - events.amazonaws.com
+            - firehose.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AWSLambdaExecute
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+      - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+      - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      - arn:aws:iam::aws:policy/AmazonRedshiftFullAccess
+      Path: '/'
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWS::StackName}-lambda-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: ParameterStoreAccess
+          Effect: Allow
+          Action:
+          - ssm:GetParameter*
+          - ssm:GetParametersByPath
+          Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/trackman-*
+      Roles:
+      - !Ref LambdaRole
+  # =========================================================================================
+  # AWS LAMBDA FUNCTIONS
+  # ========================================================================================= 
+  MLBPlayByPlayQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-playbyplay-queue-${Environment}
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: 
+          Fn::GetAtt: MLBPlayByPlayDeadLetterQueue.Arn
+        maxReceiveCount: 20
+  MLBPlayByPlayDeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-playbyplay-dead-letter-queue-${Environment}
+      MessageRetentionPeriod: 1209600
+  MLBTeamsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-teams-queue-${Environment}
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: 
+          Fn::GetAtt: MLBTeamsDeadLetterQueue.Arn
+        maxReceiveCount: 20
+  MLBTeamsDeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-teams-dead-letter-queue-${Environment}
+      MessageRetentionPeriod: 1209600      
+  MLBVenueQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-venue-queue-${Environment}
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: 
+          Fn::GetAtt: MLBVenueDeadLetterQueue.Arn
+        maxReceiveCount: 20
+  MLBVenueDeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-venue-dead-letter-queue-${Environment}
+      MessageRetentionPeriod: 1209600  
+  MLBLivefeedQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-livefeed-queue-${Environment}
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: 
+          Fn::GetAtt: MLBLivefeedDeadLetterQueue.Arn
+        maxReceiveCount: 20
+  MLBLivefeedDeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-livefeed-dead-letter-queue-${Environment}
+      MessageRetentionPeriod: 1209600  
+  MLBPlayersQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-players-queue-${Environment}
+      VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: 
+          Fn::GetAtt: MLBPlayersDeadLetterQueue.Arn
+        maxReceiveCount: 20
+  MLBPlayersDeadLetterQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub mlb-players-dead-letter-queue-${Environment}
+      MessageRetentionPeriod: 1209600
+  MLBScheduleTracker:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: !Sub mlb-schedule-tracker-${Environment}
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.7
+      CodeUri: mlb_schedule_tracker/
+      Description: track a mlb schedule from MLB Stats API
+      MemorySize: 128
+      Timeout: 900
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          APP_ENV: !Ref Environment
+          SCHEDULE_DYNAMODB_TABLE: !Ref MLBScheduleDynamodbTable
+      Tags:
+        env: !Ref Environment
+        service: !Sub mlb-service-${Environment}
+        function_name: !Sub mlb-schedule-tracker-${Environment}
+      Events:
+        Schedule:
+          Type: Schedule
+          Properties:
+            Schedule: "rate(1 hour)"
+            Enabled: false   
+  MLBScheduleRouter:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub mlb-schedule-router-${Environment}
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.7
+      CodeUri: mlb_schedule_router/
+      Description: send queue message to get data from MLB Stats API
+      MemorySize: 128
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          APP_ENV: 
+            Ref: Environment
+          PLAYBYPLAY_QUEUE: !Ref MLBPlayByPlayQueue
+          LIVEFEED_QUEUE: !Ref MLBLivefeedQueue
+          VENUE_QUEUE: !Ref MLBVenueQueue
+          TEAMS_QUEUE: !Ref MLBTeamsQueue
+      Tags:
+        env:
+          Ref: Environment
+        service: !Sub mlb-service-${Environment}
+        function_name: !Sub mlb-schedule-router-${Environment}
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt MLBScheduleDynamodbTable.StreamArn
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON    
+  CsvGenerator:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub csv-generator-${Environment}
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.7
+      CodeUri: csv_generator/
+      Description: receive queue message to generate a csv file from Stats API
+      MemorySize: 256
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          APP_ENV: 
+            Ref: Environment
+          BUCKET: !Ref DataLakeS3Bucket
+      Tags:
+        env:
+          Ref: Environment
+        service: !Sub mlb-service-${Environment}
+        function_name: !Sub mlb-schedule-router-${Environment}
+      Events:
+        PlayByPlayEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MLBPlayByPlayQueue.Arn
+            BatchSize: 1
+        LiveFeedEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MLBLivefeedQueue.Arn
+            BatchSize: 1
+        TeamsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MLBTeamsQueue.Arn
+            BatchSize: 1
+        PlayersEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MLBPlayersQueue.Arn
+            BatchSize: 1
+        VenueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MLBVenueQueue.Arn
+            BatchSize: 1    
+  ImportCsvIntoRedshift:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub import-csv-into-redshift-${Environment}
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.6
+      CodeUri: import_csv_into_redshift/
+      Description: read csv from s3 and upsert data into redshift
+      MemorySize: 256
+      Timeout: 900
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Environment:
+        Variables:
+          LOGGING_LEVEL: INFO
+          APP_ENV: 
+            Ref: Environment
+          REDSHIFT_CREDENTIALS: redshift_credentials
+      Tags:
+        env:
+          Ref: Environment
+        service: !Sub mlb-service-${Environment}
+        function_name: !Sub import-csv-into-redshift-${Environment}
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: 
+              Ref: DataLakeS3Bucket
+            Events: s3:ObjectCreated:*
+  DataLakeS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub baseball-data-lake-${Environment}
+      AccelerateConfiguration: 
+        AccelerationStatus: Suspended
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE    
+  MLBScheduleDynamodbTable: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: 
+        - 
+          AttributeName: "gamePk"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "gamePk"
+          KeyType: "HASH"
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TableName: !Sub mlb-schedule-${Environment}
+Outputs:
+  ImportCsvIntoRedshift:
+    Value: !GetAtt ImportCsvIntoRedshift.Arn
+    Export:
+      Name: !Sub import-csv-into-redshift-${Environment}-arn
