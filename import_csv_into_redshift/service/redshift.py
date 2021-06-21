@@ -88,7 +88,13 @@ def drop_table(redshift_credentials, stage_table):
 def merge_operation_by_replacing_existing_rows(redshift_credentials, target_table, stage_table):
     if 'playbyplay' in stage_table:
         primary_key = 'id'
-
+    elif 'players' in stage_table:
+        primary_key = 'id'
+    elif 'teams' in stage_table:
+        primary_key = 'id'
+    elif 'livefeed' in stage_table:
+        primary_key = 'id'
+        
     sql_statement = f"""
                     begin transaction;
 

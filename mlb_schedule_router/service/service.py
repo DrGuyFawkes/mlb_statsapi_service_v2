@@ -41,25 +41,32 @@ def main(event, environment):
 
                 # venue
                 if 'venue' in convert_json.keys():
-                    playbyplay_queue_url = environment['sqs']['VENUE_QUEUE']    
+                    venue_queue_url = environment['sqs']['VENUE_QUEUE']    
                     venue_message = json.dumps({
-                                                'venue':convert_json['venue'],
+                                                'link':convert_json['venue'],
                                                 'type':'venue'
                                                 })
                 # teams
                 if 'teams' in convert_json.keys():
-                    playbyplay_queue_url = environment['sqs']['TEAMS_QUEUE']   
-                    team_message = json.dumps({
-                                                'teams':convert_json['teams'],
-                                                'type':'teams'
-                                                })
+                    teams_queue_url = environment['sqs']['TEAMS_QUEUE']
+                    for key in convert_json['teams'].keys():
+                        if key in ['away', 'home']:
+                            link = convert_json['teams'][key]['team']['link']
+                            team_message = json.dumps({
+                                                      'link': link,
+                                                      'type':'teams'
+                                                      })
+                            response = sqs.publish_sqs(teams_queue_url, team_message)
+
+                # provided venue endpoint has name of venue only. For now, this service is not using venue endpoint. The venue will pull from livefeed endpoint. 
                 # livefeed
                 if 'link' in convert_json.keys():
-                    playbyplay_queue_url = environment['sqs']['LIVEFEED_QUEUE']   
+                    livefeed_queue_url = environment['sqs']['LIVEFEED_QUEUE']   
                     livefeed_message = json.dumps({
-                                                'livefeed':convert_json['link'],
+                                                'link':convert_json['link'],
                                                 'type':'livefeed'
-                                                })                
+                                                })
+                    response = sqs.publish_sqs(livefeed_queue_url, livefeed_message)                
 
             elif record['eventName'] == 'REMOVE':
                 pass

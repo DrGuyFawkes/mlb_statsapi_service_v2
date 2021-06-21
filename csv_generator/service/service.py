@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 import json
-from service import mlb_statsapi_client, s3
+from service import mlb_statsapi_client, s3, sqs
 import sys
 
 
@@ -34,28 +34,48 @@ def main(event, environment):
         for record in event["Records"]:
 
             message_body = json.loads(event["Records"][0]['body'])
-            game_pk = message_body['gamePk']
+            
             request_type = message_body['type'].lower()
     
             if request_type == 'playbyplay':
-                output = mlb_statsapi_client.get_playbyplay_statsapi(game_pk)
+                identifier = message_body['gamePk']
+                output = mlb_statsapi_client.get_playbyplay_statsapi(identifier)
             
-            elif request_type == 'livefeed':
-                pass
+            
+            elif request_type == 'livefeed': # livefeed + venue
+                link = message_body['link']
+                identifier = link.split('/')[-3]
+                livefeed = mlb_statsapi_client.get_livefeed_statsapi(link)
+                output = livefeed[0]
+                players = livefeed[1]
+
+                # send player queue to get a player data from the player endpoint
+                players_queue_url = environment['sqs']['PLAYERS_QUEUE']
+                for player_link in players:   
+                    player_message = json.dumps({
+                                                'link':player_link,
+                                                'type':'players'
+                                                })
+                    response = sqs.publish_sqs(players_queue_url, player_message)
 
             elif request_type == 'teams':
-                pass
+                link = message_body['link']
+                identifier = link.split('/')[-1]
+                output = mlb_statsapi_client.get_teams_statsapi(link)
 
             elif request_type == 'players':
-                pass
+                link = message_body['link']
+                identifier = link.split('/')[-1]
+                output = mlb_statsapi_client.get_players_statsapi(link)
 
+            # provided venue endpoint has name of venue only. For now, this service is not using venue endpoint. The venue will pull from livefeed endpoint.
             elif request_type == 'venue':
                 pass
 
 
-            if len(output) > 0:
+            if 'output' in vars() and len(output) > 0:
                 bucket = environment['s3']['BUCKET']
-                response = s3.put_csv_to_s3(bucket, game_pk, request_type, output)
+                response = s3.put_csv_to_s3(bucket, identifier, request_type, output)
 
     except KeyError as e:
         error = f"Missing required field {e}."

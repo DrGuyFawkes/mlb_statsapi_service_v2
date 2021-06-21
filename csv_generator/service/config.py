@@ -19,7 +19,10 @@ def load_env():
             },
             "s3":{
                 "BUCKET" : os.environ['BUCKET']
-                }
+                },
+            "sqs":{
+                "PLAYERS_QUEUE" : os.environ['PLAYERS_QUEUE']
+            }
         }
     except KeyError as error:
         LOGGER.exception("Enviroment variable %s is required.", error)

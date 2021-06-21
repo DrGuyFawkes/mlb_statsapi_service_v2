@@ -6,7 +6,7 @@ from datetime import datetime
 import csv
 import os
 
-def put_csv_to_s3(bucket_name, game_pk, reqeust_type, records):
+def put_csv_to_s3(bucket_name, identifier, reqeust_type, records):
 
     class Pipe:
         value = ""
@@ -45,7 +45,7 @@ def put_csv_to_s3(bucket_name, game_pk, reqeust_type, records):
     current_day = str("{:02d}".format(now.day))
     current_hour = str("{:02d}".format(now.hour))
 
-    keyPath = f'data/rds_ingestion_data/{reqeust_type}/year={current_year}/month={current_month}/day={current_day}/hour={current_hour}/{reqeust_type}_{game_pk}_{current_timestamp}.csv'
+    keyPath = f'data/rds_ingestion_data/{reqeust_type}/year={current_year}/month={current_month}/day={current_day}/hour={current_hour}/{reqeust_type}_{identifier}_{current_timestamp}.csv'
 
 
     response = s3.put_object(Bucket=bucket_name, Body= pipe.value, Key=keyPath)
