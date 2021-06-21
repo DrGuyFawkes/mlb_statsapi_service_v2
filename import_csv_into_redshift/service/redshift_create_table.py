@@ -6,7 +6,7 @@ import psycopg2
 def create_stage_sql_statement(target_table, stage_table):
     if target_table == 'playbyplay':
         sql_statement = f'''
-                        CREATE TABLE {stage_table} (
+                        CREATE TABLE IF NOT EXISTS  {stage_table} (
                             inning bigint NULL,
                             halfinning text NULL,
                             gamepk text NULL,
@@ -74,13 +74,13 @@ def create_stage_sql_statement(target_table, stage_table):
                             hitdata_coordinates_coordx double precision NULL,
                             hitdata_coordinates_coordy double precision NULL,
                             ingestion_timestamp_utc timestamp without time zone NULL,
-                            primary key(id)   
+                            primary key (id)
                         );
                     '''
     
     elif target_table == 'players':
         sql_statement = f'''
-                        CREATE TABLE {stage_table} (
+                        CREATE TABLE IF NOT EXISTS  {stage_table} (
                                 ingestion_timestamp_utc timestamp NULL,
                                 usename text NULL,
                                 nameslug text NULL,
@@ -121,14 +121,14 @@ def create_stage_sql_statement(target_table, stage_table):
                                 birthdate timestamp NULL,
                                 birthcountry text NULL,
                                 birthcity text NULL,
-                                id text NULL,
-                                primary key(id)                    
+                                id text NOT NULL,
+                                primary key (id)                    
                         );
                     '''
 
     elif target_table == 'teams':
         sql_statement = f'''
-                        CREATE TABLE {stage_table} (
+                        CREATE TABLE IF NOT EXISTS  {stage_table} (
                         ingestion_timestamp_utc timestamp NULL,
                         springvenue_link text NULL,
                         springvenue_id text NULL,
@@ -163,13 +163,13 @@ def create_stage_sql_statement(target_table, stage_table):
                         shortname text NULL,
                         teamname text NULL,
                         id text NOT NULL,
-                        primary key(id)                 
+                        primary key (id)             
                         );
                     '''
 
     elif target_table == 'livefeed':
         sql_statement = f'''
-                        CREATE TABLE {stage_table} (
+                        CREATE TABLE IF NOT EXISTS  {stage_table} (
                         ingestion_timestamp_utc TIMESTAMP NULL,
                         teams_home_runs bigint NULL,
                         teams_home_leftonbase bigint NULL,
@@ -250,7 +250,7 @@ def create_stage_sql_statement(target_table, stage_table):
                         datetime_datetime TIMESTAMPTZ NULL,
                         datetime_ampm text NULL,
                         id text NOT NULL,
-                        primary key(id) 
+                        primary key (id)
                         );
                     '''    
 

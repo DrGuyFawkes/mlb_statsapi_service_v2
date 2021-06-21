@@ -46,6 +46,14 @@ Resources:
           - ssm:GetParameter*
           - ssm:GetParametersByPath
           Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/trackman-*
+        - Sid: SecretManagerAccess
+          Effect: Allow
+          Action:
+          - secretsmanager:DescribeSecret
+          - secretsmanager:GetSecretValue
+          - secretsmanager:PutSecretValue
+          - secretsmanager:UpdateSecretVersionStage
+          Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:secret:*
       Roles:
       - !Ref LambdaRole
   # =========================================================================================

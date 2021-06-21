@@ -96,7 +96,7 @@ def merge_operation_by_replacing_existing_rows(redshift_credentials, target_tabl
         primary_key = 'id'
         
     sql_statement = f"""
-                    begin transaction;
+                    /*begin transaction;*/
 
                     delete from {target_table} 
                     using {stage_table}
@@ -105,10 +105,10 @@ def merge_operation_by_replacing_existing_rows(redshift_credentials, target_tabl
                     insert into {target_table}  
                     select * from {stage_table};
 
-                    end transaction;
+                    /*end transaction;*/
 
                     """
-
+    print(sql_statement)
     con=connect_redshift(redshift_credentials)
 
     cur = con.cursor()

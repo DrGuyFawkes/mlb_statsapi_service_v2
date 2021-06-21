@@ -31,7 +31,7 @@ def main(event, environment):
 
                 stage_name = object_key.split('/')[-1].split('.')[0]
                 target_name = object_key.split('/')[2]
-
+                
                 ## read a csv from s3 and write a dataframe
                 df_csv = s3.read_csv_from_s3(bucket_name, object_key)
           
@@ -62,7 +62,7 @@ def main(event, environment):
         execution_event.update({"status": "Error", "description": error, "metadata": event})
 
         # if error, drop stage table
-        response = redshift.drop_table(redshift_credentials, stage_name) 
+        #response = redshift.drop_table(redshift_credentials, stage_name) 
         sys.exit(1)
 
     except Exception as e:
@@ -70,7 +70,7 @@ def main(event, environment):
         execution_event.update({"status": "Error", "description": f"{str(e)}", "metadata": event})
 
         # if error, drop stage table
-        response = redshift.drop_table(redshift_credentials, stage_name)
+        #response = redshift.drop_table(redshift_credentials, stage_name)
         sys.exit(1)
 
     finally:
