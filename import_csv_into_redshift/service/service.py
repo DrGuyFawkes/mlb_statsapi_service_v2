@@ -33,21 +33,27 @@ def main(event, environment):
                 
                 ## read a csv from s3 and write a dataframe
                 df_csv = s3.read_csv_from_s3(bucket_name, object_key)
-          
-                ## create stage table in redshift
+
+                ## connect redshift
                 redshift_credentials = environment['secretsmanager']['REDSHIFT_CREDENTIALS']
-                response = redshift_create_table.create_stage_table(redshift_credentials, target_name, stage_name)
+                con = redshift.connect_redshift(redshift_credentials)
+
+                ## create stage table in redshift
+                response = redshift_create_table.create_stage_table(con, target_name, stage_name)
                 response = redshift.insert_csv_into_stage(redshift_credentials, stage_name, df_csv)
 
                 ## upsert data from stage to target table
-                response = redshift.merge_operation_by_replacing_existing_rows(redshift_credentials, target_name, stage_name)
+                response = redshift.merge_operation_by_replacing_existing_rows(con, target_name, stage_name)
 
                 ## drop stage table
-                response = redshift.drop_table(redshift_credentials, stage_name) 
+                response = redshift.drop_table(con, stage_name)
+
+                ## disconnect redshift
+                con.close() 
                
-                LOGGER.info('complete import process:: ', object_key)
+                print('complete import process:: ', object_key)
             else:
-                LOGGER.info('nothing to process: not target folder')
+                print('nothing to process: not target folder')
 
     except KeyError as e:
         error = f"Missing required field {e}."

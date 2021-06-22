@@ -16,7 +16,7 @@ def insert_csv_into_stage(redshift_credentials, stage_name, df_csv):
     return df_csv.to_sql(stage_name, conn, index=False, if_exists='append',chunksize=1000, method='multi')
 
 
-def upsert_data(redshift_credentials, target_table, stage_table, columns):
+def upsert_data(con, target_table, stage_table, columns):
     if 'playbyplay' in stage_table:
         primary_key = 'id'
 
@@ -32,18 +32,15 @@ def upsert_data(redshift_credentials, target_table, stage_table, columns):
                     WHERE EXCLUDED.ingestion_timestamp_utc > {target_table}.ingestion_timestamp_utc;
                     """
 
-    con=connect_redshift(redshift_credentials)
-
     cur = con.cursor()
     cur.execute(sql_statement)
     con.commit()
 
     cur.close() 
-    con.close()
 
     return print('successfully ran sql statement: upsert_data')
 
-def get_column_name(redshift_credentials, object_key):
+def get_column_name(con, object_key):
 
     stage_name = object_key.split('/')[-1].split('.')[0]
 
@@ -52,8 +49,6 @@ def get_column_name(redshift_credentials, object_key):
                     FROM information_schema.columns
                     WHERE table_name = '{stage_name}'
                     """
-    
-    con=connect_redshift(redshift_credentials)
 
     cur = con.cursor()
     cur.execute(sql_statement)
@@ -66,26 +61,24 @@ def get_column_name(redshift_credentials, object_key):
         columns.append(column_name)
 
 
-    cur.close() 
-    con.close()
+    cur.close()
 
     return columns
 
-def drop_table(redshift_credentials, stage_table):
+def drop_table(con, stage_table):
     sql_statement = f"""
                     DROP TABLE IF EXISTS {stage_table}
                     """
-    con=connect_redshift(redshift_credentials)
 
     cur = con.cursor()
     cur.execute(sql_statement)
     con.commit()
 
     cur.close() 
-    con.close()
+
     return print('successfully ran sql statement: drop_table')
 
-def merge_operation_by_replacing_existing_rows(redshift_credentials, target_table, stage_table):
+def merge_operation_by_replacing_existing_rows(con, target_table, stage_table):
     if 'playbyplay' in stage_table:
         primary_key = 'id'
     elif 'players' in stage_table:
@@ -96,7 +89,7 @@ def merge_operation_by_replacing_existing_rows(redshift_credentials, target_tabl
         primary_key = 'id'
         
     sql_statement = f"""
-    
+
                     delete from {target_table} 
                     using {stage_table}
                     where {target_table}.{primary_key} = {stage_table}.{primary_key}; 
@@ -105,15 +98,12 @@ def merge_operation_by_replacing_existing_rows(redshift_credentials, target_tabl
                     select * from {stage_table};
 
                     """
-    print(sql_statement)
-    con=connect_redshift(redshift_credentials)
 
     cur = con.cursor()
     cur.execute(sql_statement)
     con.commit()
 
     cur.close() 
-    con.close()
 
     return print('successfully ran sql statement: upsert_data')
 

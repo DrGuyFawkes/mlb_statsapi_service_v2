@@ -1,5 +1,3 @@
-from sqlalchemy import create_engine
-import pandas as pd
 from dataclasses import asdict
 import psycopg2
 
@@ -257,19 +255,15 @@ def create_stage_sql_statement(target_table, stage_table):
     return sql_statement
 
 
-
-def create_stage_table(redshift_credentials, target_table, stage_table):
+def create_stage_table(con, target_table, stage_table):
 
     sql_statement = create_stage_sql_statement(target_table, stage_table)
-
-    con=connect_redshift(redshift_credentials)
 
     cur = con.cursor()
     cur.execute(sql_statement)
     con.commit()
 
     cur.close() 
-    con.close()
 
     return print('successfully ran sql statement: create_stage')
 
