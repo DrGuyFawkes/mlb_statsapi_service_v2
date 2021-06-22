@@ -16,8 +16,8 @@ def load_env():
             "app": {
                 "LOGGING_LEVEL": os.environ["LOGGING_LEVEL"],
                 "APP_ENV": os.environ['APP_ENV']},
-            "sqs":{
-                 "SCHEDULE_QUEUE":os.environ['SCHEDULE_QUEUE']
+            "dynamodb":{
+                 "SCHEDULE_DYNAMODB_TABLE":os.environ['SCHEDULE_DYNAMODB_TABLE']
             }
         }
     except KeyError as error:

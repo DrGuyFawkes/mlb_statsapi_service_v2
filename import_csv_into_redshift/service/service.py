@@ -26,9 +26,8 @@ def main(event, environment):
         for record in event['Records']:
             bucket_name = record['s3']['bucket']['name']
             object_key = record['s3']['object']['key'].replace('%3D', '=')
-
+            
             if 'data/rds_ingestion_data/' in object_key:
-
                 stage_name = object_key.split('/')[-1].split('.')[0]
                 target_name = object_key.split('/')[2]
                 
@@ -39,12 +38,6 @@ def main(event, environment):
                 redshift_credentials = environment['secretsmanager']['REDSHIFT_CREDENTIALS']
                 response = redshift_create_table.create_stage_table(redshift_credentials, target_name, stage_name)
                 response = redshift.insert_csv_into_stage(redshift_credentials, stage_name, df_csv)
-                
-                ### there is an issue. Not enough time to fix it. So I sumbit a second option. Ideally, upsert is a better approach.
-                ## get column name from stage tale
-                # columns = redshift.get_column_name(redshift_credentials, stage_name)            
-                ## upsert data from stage to target table
-                # response = redshift.upsert_data(redshift_credentials, target_name, stage_name, columns)
 
                 ## upsert data from stage to target table
                 response = redshift.merge_operation_by_replacing_existing_rows(redshift_credentials, target_name, stage_name)

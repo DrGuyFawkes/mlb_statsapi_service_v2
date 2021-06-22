@@ -33,8 +33,7 @@ def main(event, environment):
     try:
         for record in event["Records"]:
 
-            message_body = json.loads(event["Records"][0]['body'])
-            
+            message_body = json.loads(event["Records"][0]['body'])            
             request_type = message_body['type'].lower()
     
             if request_type == 'playbyplay':
@@ -51,12 +50,12 @@ def main(event, environment):
 
                 # send player queue to get a player data from the player endpoint
                 players_queue_url = environment['sqs']['PLAYERS_QUEUE']
-                for player_link in players:   
-                    player_message = json.dumps({
-                                                'link':player_link,
-                                                'type':'players'
-                                                })
-                    response = sqs.publish_sqs(players_queue_url, player_message)
+                player_message = json.dumps({
+                                            'link':players,
+                                            'type':'players',
+                                            'gamePk':identifier
+                                            })
+                response = sqs.publish_sqs(players_queue_url, player_message)
 
             elif request_type == 'teams':
                 link = message_body['link']
@@ -64,9 +63,13 @@ def main(event, environment):
                 output = mlb_statsapi_client.get_teams_statsapi(link)
 
             elif request_type == 'players':
-                link = message_body['link']
-                identifier = link.split('/')[-1]
-                output = mlb_statsapi_client.get_players_statsapi(link)
+                player_links = message_body['link']
+                identifier = message_body['gamePk']
+                
+                output = []
+                for link in player_links:
+                    player_data = mlb_statsapi_client.get_players_statsapi(link)
+                    output.extend(player_data)
 
             # provided venue endpoint has name of venue only. For now, this service is not using venue endpoint. The venue will pull from livefeed endpoint.
             elif request_type == 'venue':

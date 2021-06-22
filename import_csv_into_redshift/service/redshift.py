@@ -96,16 +96,13 @@ def merge_operation_by_replacing_existing_rows(redshift_credentials, target_tabl
         primary_key = 'id'
         
     sql_statement = f"""
-                    /*begin transaction;*/
-
+    
                     delete from {target_table} 
                     using {stage_table}
                     where {target_table}.{primary_key} = {stage_table}.{primary_key}; 
 
                     insert into {target_table}  
                     select * from {stage_table};
-
-                    /*end transaction;*/
 
                     """
     print(sql_statement)
@@ -128,4 +125,3 @@ def connect_redshift(redshift_credentials):
                     password= redshift_credentials['password']
                     )
     return con
-
